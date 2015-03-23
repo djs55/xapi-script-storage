@@ -41,15 +41,20 @@ let backend_error name args =
   let exnty = Exception.Backend_error (name, args) in
   Exception.rpc_of_exnty exnty
 
+type stack_frame = {
+  filename: string;
+  line: int;
+} with sexp
+type backtrace = stack_frame list with sexp
+
 let backend_backtrace_error name args error =
   match List.zip error.files error.lines with
   | None -> backend_error "SCRIPT_FAILED" [ "malformed backtrace in error output" ]
   | Some pairs ->
     let backtrace =
       pairs
-      |> List.map ~f:(fun (filename, line) -> { B.Interop.filename; line })
-      |> B.Interop.to_backtrace
-      |> B.sexp_of_t
+      |> List.map ~f:(fun (filename, line) -> { filename; line })
+      |> sexp_of_backtrace
       |> Sexplib.Sexp.to_string in
     let open Storage_interface in
     let exnty = Exception.Backend_error_with_backtrace(name, backtrace :: args) in
